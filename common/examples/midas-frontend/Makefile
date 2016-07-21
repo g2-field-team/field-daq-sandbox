@@ -26,9 +26,9 @@ MID_LIB = $(MIDASSYS)/linux/lib
 
 # Libraries && include flags
 LIBS += -L$(MID_LIB) -Lcore/lib -L/usr/lib64/mysql
-LIBS += -lmidas-shared -lmysqlclient -lsqlite3
-LIBS += -lfid -lboost_system -lboost_filesystem
-LIBS += -lm -lz -lpthread -lodbc -lrt
+LIBS += -lmidas-shared  -lmysqlclient -lsqlite3
+LIBS += -lboost_system -lboost_filesystem
+LIBS += -lm -lz -lpthread -lodbc
 CPPFLAGS += -I$(MID_INC) -Icore/include -Iobj -Iinclude
 CPPFLAGS += -I/usr/local/include/labdaq
 CPPFLAGS += -Wl,-rpath,/usr/local/lib
