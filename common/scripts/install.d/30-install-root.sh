@@ -18,5 +18,5 @@ if [ "$(grep 'thisroot.sh' ~/.bashrc)" ]; then
 else
     echo -e "\e[31mAdding a line to source root to the .bashrc\e[0m"
     echo -e "# Source ROOT setup script." >> ~/.bashrc
-    echo -e ". ~/Packages/root/bin/thisroot.sh\n" >> ~/.bashrc
+    echo -e "cd ~/Packages/root && . bin/thisroot.sh && cd -\n" >> ~/.bashrc
 fi
