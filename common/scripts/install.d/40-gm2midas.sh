@@ -9,7 +9,9 @@ if [ ! -e "~/.midas-env" ]; then
     cp ../midas-env ~/.midas-env
 fi
 
-if [ "$(grep midas-env '~/.bashrc')" ]; then
+if [ "$(grep midas-env ~/.bashrc)" ]; then
+    echo -e "\e[31mMIDAS environment vars already set in .bashrc.\e[0m"
+else
     echo -e "\e[31mAdding line to .bashrc for MIDAS environment vars.\e[0m"
     echo -e "# Source file with MIDAS environment variables." >> ~/.bashrc
     echo -e ". ~/.midas-env" >> ~/.bashrc

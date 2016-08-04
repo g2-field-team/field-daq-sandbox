@@ -10,6 +10,9 @@ do
     cd $INSTALL_DIR
 done
 
+# Source the changes.
+. ~/.bashrc
+
 # Move back into the script directory.
 cd ..
 
