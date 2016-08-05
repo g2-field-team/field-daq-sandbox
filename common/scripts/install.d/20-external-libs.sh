@@ -2,6 +2,9 @@
 
 echo -e "\e[31mInstalling requisite external packages\e[0m"
 
+# Make sure packages exists.
+mkdir -p ~/Packages
+
 # Install boost.
 if [ -d ~/Packages/boost ]; then
     echo -e "\e[31mBoost is already installed.\e[0m"
