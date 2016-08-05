@@ -4,6 +4,6 @@ echo -e "\e[31mInstalling requisite yum repos\e[0m"
 
 if [ ! -e "/etc/yum.repos.d/slc6-devtoolset.repo" ]; then
     echo -e "\e[31mAdding devtoolset-2 repo\e[0m"
-    sudo wget -O /etc/yum.repos.d/slc6-devtoolset.repo http://linuxsoft.cern.ch/cern/devtoolset/slc6-devtoolset.repo
+    wget -O /etc/yum.repos.d/slc6-devtoolset.repo http://linuxsoft.cern.ch/cern/devtoolset/slc6-devtoolset.repo
 fi
 

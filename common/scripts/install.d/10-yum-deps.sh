@@ -2,7 +2,7 @@
 
 echo -e "\e[31mInstalling requisite yum packages\e[0m"
 
-sudo yum install openssh-clients openssh-server libusb1-devel mysql-devel \
+yum install openssh-clients openssh-server libusb1-devel mysql-devel \
     python-devel libpng-devel qt-devel PyQt4 tkinter cmake lapack blas \
     libsodium-devel libXpm-devel devtoolset-2-gcc fftw-devel unixODBC
 

@@ -12,5 +12,5 @@ else
 
     cd boost
     ./bootstrap.sh
-    sudo ./b2 install
+    ./b2 install
 fi
