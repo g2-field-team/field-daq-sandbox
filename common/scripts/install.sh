@@ -7,17 +7,16 @@ cd $INSTALL_DIR
 for script in `ls [0-4]?-*.sh`
 do
     sudo ./$script
+    . ~/.bashrc
     cd $INSTALL_DIR
 done
 
 for script in `ls [5-9]?-*.sh`
 do
     . $script
+    . ~/.bashrc
     cd $INSTALL_DIR
 done
-
-# Source the changes.
-. ~/.bashrc
 
 # Move back into the script directory.
 cd ..
