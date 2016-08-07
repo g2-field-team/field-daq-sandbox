@@ -7,3 +7,6 @@ if [ ! -e "/etc/yum.repos.d/slc6-devtoolset.repo" ]; then
     wget -O /etc/yum.repos.d/slc6-devtoolset.repo http://linuxsoft.cern.ch/cern/devtoolset/slc6-devtoolset.repo
 fi
 
+echo -e "\e[31mAttempting to add epel-release repo\e[0m"
+yum -y install epel-release
+
