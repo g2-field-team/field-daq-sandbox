@@ -4,16 +4,14 @@
 INSTALL_DIR="$(dirname $(readlink -f $0))/install.d"
 cd $INSTALL_DIR
 
-for script in `ls [0-4]?-*.sh`
+for script in `ls [0-9]?-*.sh`
 do
-    sudo ./$script
-    . ~/.bashrc
-    cd $INSTALL_DIR
-done
-
-for script in `ls [5-9]?-*.sh`
-do
-    . $script
+    if [ ${script:1:1} == 0 ]; then
+	sudo ./$script
+    else
+	. $script
+    fi
+    
     . ~/.bashrc
     cd $INSTALL_DIR
 done
