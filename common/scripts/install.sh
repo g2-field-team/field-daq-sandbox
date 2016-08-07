@@ -6,7 +6,7 @@ cd $INSTALL_DIR
 
 for script in `ls [0-4]?-*.sh`
 do
-    sudo . $script
+    sudo ./$script
     cd $INSTALL_DIR
 done
 
