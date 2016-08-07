@@ -9,7 +9,7 @@ if [ ! -d root ]; then
 fi
 
 cd root
-git checkout -b v5-34-08 v5-34-08
+git checkout -b v5-34-36 v5-34-36
 ./configure --all
 make
 
