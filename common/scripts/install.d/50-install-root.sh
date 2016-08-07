@@ -20,3 +20,5 @@ else
     echo -e "# Source ROOT setup script." >> ~/.bashrc
     echo -e "cd ~/Packages/root && . bin/thisroot.sh && cd -\n" >> ~/.bashrc
 fi
+
+source ~/.bashrc

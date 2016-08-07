@@ -41,3 +41,4 @@ if [ ! -d "g2-midas" ]; then
     make
 fi
 
+source ~/.bashrc
