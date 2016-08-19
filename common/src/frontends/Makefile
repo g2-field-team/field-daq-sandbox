@@ -29,6 +29,7 @@ LIBS += -L$(MID_LIB) -Lcore/lib -L/usr/lib64/mysql -L/usr/local/lib
 LIBS += -lmidas-shared  -lmysqlclient -lsqlite3
 LIBS += -lboost_system -lboost_filesystem
 LIBS += -lm -lz -lpthread -lodbc
+LIBS += -lgclib -lgclibo
 CPPFLAGS += -I$(MID_INC) -Icore/include -Iobj -Iinclude
 CPPFLAGS += -I/usr/local/opt/boost/include/
 CPPFLAGS += -I/usr/local/include/
