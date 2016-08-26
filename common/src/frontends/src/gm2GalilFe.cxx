@@ -20,18 +20,14 @@ $Id$
 #include <string>
 #include <iomanip>
 #include <vector>
-//#include "/home/galil/DAQ/midas/drivers/device/nulldev.h"
-//#include "/home/galil/DAQ/midas/drivers/bus/null.h"
-//#include "/home/galil/DAQ/midas/drivers/class/hv.h"
-//#include "/home/galil/DAQ/midas/drivers/bus/rs232.h"
-#include <termios.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/timeb.h>
 #include <fstream>
 #include <sstream>
-
+#include <thread>
+#include <mutex>
 
 #define GALIL_EXAMPLE_OK G_NO_ERROR //return code for correct code execution
 #define GALIL_EXAMPLE_ERROR -100
@@ -56,17 +52,27 @@ extern "C" {
   INT size1; // size of setaxes[3]
 
   typedef struct GalilDataStruct{
-    float TimeStamp;
-    float TensionArray[2];
-    float VelocityArray[2];
-    float PositionArray[2];
-    float OutputVArray[2];
+    double TimeStamp;
+    double TensionArray[2];
+    double VelocityArray[3];
+    double PositionArray[3];
+    double OutputVArray[3];
   }GalilDataStruct;
 
   typedef struct BarcodeDataStruct{
-    float TimeStamp;
-    float BarcodeArray[6];
+    double TimeStamp;
+    double BarcodeArray[6];
   }BarcodeDataStruct;
+
+  vector<GalilDataStruct> GalilDataBuffer;
+  vector<BarcodeDataStruct> BarcodeDataBuffer;
+
+  thread read_thread;
+  mutex mlock;
+
+  void GetGalilMessage(const GCon &g);
+  bool RunActive;
+  int ReadGroupSize = 50;
 
   int i;
   string s;
@@ -103,9 +109,6 @@ extern "C" {
   /* buffer size to hold events */
   INT event_buffer_size = 100 * 10000;
 
-  /* residule string */
-  string ResidualString = string("");
-
 
   /*-- Function declarations -----------------------------------------*/
 
@@ -141,15 +144,15 @@ extern "C" {
 
 
     {"Galil",                /* equipment name */
-      {3, 0,                   /* event ID, trigger mask */
+      {1, 0,                   /* event ID, trigger mask */
 	"SYSTEM",               /* event buffer */
-	EQ_PERIODIC,            /* equipment type */
+	EQ_POLLED,            /* equipment type */
 	0,                      /* event source */
 	"MIDAS",                /* format */
 	TRUE,                   /* enabled */
 	RO_RUNNING | RO_TRANSITIONS |   /* read when running and on transitions */
 	  RO_ODB,                 /* and update ODB */
-	10,                  /* read every 0.01 sec */
+	100,                  /* poll every 0.1 sec */
 	0,                      /* stop run after this event limit */
 	0,                      /* number of sub events */
 	60,                      /* log history, logged once per minute */
@@ -196,9 +199,7 @@ resume_run:     When a run is resumed. Should enable trigger events.
 
 INT frontend_init()
 { 
-  //b=GOpen("/dev/ttyUSB0 -t 1000 -s MG -d", &g);
   b=GOpen("192.168.1.13 -s ALL -t 1000 -d",&g);
-  //GOpen("00:50:4c:38:19:AA -s ALL -t 1000 -d", &g);
   GInfo(g, buf, sizeof(buf)); //grab connection string
   cout << "buf is" << " "<<  buf << "\n";
   if (b==G_NO_ERROR){
@@ -207,12 +208,8 @@ INT frontend_init()
   else {cout << "connection failed \n";}
 
   GTimeout(g,2000);//adjust timeout
-  //int i = 0;
-  //int s;
 
   //-------------end code to communicate with Galil------------------
-
-
 
   return SUCCESS;
 }
@@ -244,15 +241,20 @@ INT begin_of_run(INT run_number, char *error)
   db_get_value(hDB,0,"/Equipment/Galil/CmdScript",ScriptName,&ScriptName_size,TID_STRING,0);
   string FullScriptName = string("/Users/rhong/gm2software/experiments/gm2Trolley/")+string(ScriptName)+string(".dmc");
 //  cout << FullScriptName<<endl;
+//Get ReadGroupSize from odb
+  INT ReadGroupSize_size = sizeof(ReadGroupSize);
+  db_get_value(hDB,0,"/Equipment/Galil/ReadGroupSize",&ReadGroupSize,&ReadGroupSize_size,TID_INT, 0);
+
   GProgramDownload(g,"",0); //to erase prevoius programs
   //dump the buffer
   char buffer[5000000];
   rc = GMessage(g, buffer, sizeof(buf));
-  //Clear residual string
-  ResidualString.clear();
   //b=GProgramDownloadFile(g,"/Users/rhong/gm2software/experiments/gm2Trolley/feedbacktestCurrent.dmc",0);
   b=GProgramDownloadFile(g,FullScriptName.c_str(),0);
   GCmd(g, "XQ #TH1,0");
+  RunActive=true;
+  //Start thread
+  read_thread = thread(GetGalilMessage,g);
   return SUCCESS;
 }
 
@@ -262,8 +264,13 @@ INT end_of_run(INT run_number, char *error)
 
 {
   GCmd(g,"HX");
+  GCmd(g,"AB");
+  RunActive=false;
+  GalilDataBuffer.clear();
+  BarcodeDataBuffer.clear();
   GalilOutFile.close();
   GalilOutFileDirect.close();
+  read_thread.join();
   return SUCCESS;
 }
 
@@ -308,8 +315,9 @@ INT poll_event(INT source, INT count, BOOL test)
      is available. If test equals TRUE, don't return. The test
      flag is used to time the polling */
 {
-
-
+  mlock.lock();
+  if (GalilDataBuffer.size()>ReadGroupSize && BarcodeDataBuffer.size()>ReadGroupSize)return 1;
+  mlock.unlock();
   return 0;
 }
 
@@ -341,104 +349,13 @@ INT read_galil_event(char *pevent, INT off){
   float *pdata;
   float *pdatab;
 
-  double time;
-
-  GalilDataStruct GalilDataUnit;
-  BarcodeDataStruct BarcodeDataUnit;
-  int DataBufferSize = 500;
-  vector<GalilDataStruct> GalilDataBuffer(DataBufferSize);
-  vector<BarcodeDataStruct> BarcodeDataBuffer(DataBufferSize);
-
-  char buffer[5000000];
-  hkeyclient=0;
-
-  string Device;
-
-  rc = GMessage(g, buffer, sizeof(buf));
-
-//  cout<<buffer<<endl;
-  GalilOutFileDirect<<buffer;
-  string BufString = string(buffer);
-  //Add the residual from last read
-  if (ResidualString.size()!=0)BufString = ResidualString+BufString;
-  ResidualString.clear();
-
-  size_t foundnewline = BufString.find("\n");
-//  static  bool flag = false;
-
-  int iGalil = 0;
-  int iBarcode = 0;
-  while (foundnewline!=string::npos){
-/*    if (flag){
-      GalilOutFile<<"REMAINING string: "<< BufString.substr(0,foundnewline-1)<<endl;
-      flag=false;
-    }*/
-    stringstream iss (BufString.substr(0,foundnewline-1));
-    // output returned by Galil is stored in the following variables
-
-    iss >> Device;
-    if(Device.compare("Trolley")==0){
-      iss >> time;
-      GalilDataUnit.TimeStamp = float(time);
-      
-      for (int j=0;j<2;j++){
-	iss >> GalilDataUnit.TensionArray[j];
-      }
-      for (int j=0;j<2;j++){
-	iss >> GalilDataUnit.PositionArray[j];
-      }
-      for (int j=0;j<2;j++){
-	iss >> GalilDataUnit.VelocityArray[j];
-      }
-      for (int j=0;j<2;j++){
-	iss >> GalilDataUnit.OutputVArray[j];
-      }
-      if (iGalil>=DataBufferSize){
-	GalilDataBuffer.push_back(GalilDataUnit);
-      }else{
-	GalilDataBuffer[iGalil]=GalilDataUnit;
-      }
-      iGalil++;
-      //Write to txt output
-      GalilOutFile<<"Trolley "<<int(time)<<" "<<GalilDataUnit.TensionArray[0]<<" "<<GalilDataUnit.TensionArray[1]<<" "<<GalilDataUnit.PositionArray[0]<<" "<<GalilDataUnit.PositionArray[1]<<" "<<GalilDataUnit.VelocityArray[0]<<" "<<GalilDataUnit.VelocityArray[1]<<" "<<GalilDataUnit.OutputVArray[0]<<" "<<GalilDataUnit.OutputVArray[1]<<endl;
-    }else if(Device.compare("Barcode")==0){
-      iss >> time;
-      BarcodeDataUnit.TimeStamp = float(time);
-      for (int j=0;j<6;j++){
-	iss >> BarcodeDataUnit.BarcodeArray[j];
-      }
-      if (iBarcode>=DataBufferSize){
-	BarcodeDataBuffer.push_back(BarcodeDataUnit);
-      }else{
-	BarcodeDataBuffer[iBarcode]=BarcodeDataUnit;
-      }
-      iBarcode++;
-      //Write to txt output
-      GalilOutFile<<"Barcode "<<int(time)<<" "<<BarcodeDataUnit.BarcodeArray[0]<<" "<<BarcodeDataUnit.BarcodeArray[1]<<" "<<BarcodeDataUnit.BarcodeArray[2]<<" "<<BarcodeDataUnit.BarcodeArray[3]<<" "<<BarcodeDataUnit.BarcodeArray[4]<<" "<<BarcodeDataUnit.BarcodeArray[5]<<endl;
-    }
-    /*else if (Device.compare("Garage")==0){
-      iss >> time;
-      int GarageP,GarageV,GarageC;
-      iss>>GarageP>>GarageV>>GarageC;
-    }*/
-
-//       GalilOutFile<<TensionArray[0]<<" "<<TensionArray[1]<<" "<<VelocityArray[0]<<" "<<VelocityArray[1]<<" "<<PositionArray[0]<<" "<<PositionArray[1]<<" "<<OutputVArray[0]<<" "<<OutputVArray[1]<<" "<<BarcodeArray[0]<<" "<<BarcodeArray[1]<<" "<<BarcodeArray[2]<<endl;
-
-    BufString = BufString.substr(foundnewline+1,string::npos);
-    foundnewline = BufString.find("\n");
-  }
-  if (BufString.size()!=0){
-  //  GalilOutFile << "Remaining string: ";
-    ResidualString = BufString;
-//    cout <<ResidualString<<endl;
-  }
-
   //Init bank
   bk_init32(pevent);
 
+  mlock.lock();
   //Write data to banks
   bk_create(pevent, "GALI", TID_FLOAT, (void **)&pdata);
-  for (int jj=0;jj<GalilDataBuffer.size();jj++){
+  for (int jj=0;jj<ReadGroupSize;jj++){
     *pdata++ = GalilDataBuffer[jj].TimeStamp;
     for (int j=0;j<2;j++){
       *pdata++ = GalilDataBuffer[jj].TensionArray[j];
@@ -457,62 +374,105 @@ INT read_galil_event(char *pevent, INT off){
 
   //Write data to banks
   bk_create(pevent, "BARC", TID_FLOAT, (void **)&pdatab);
-  for (int jj=0;jj<BarcodeDataBuffer.size();jj++){
+  for (int jj=0;jj<ReadGroupSize;jj++){
     *pdatab++ = BarcodeDataBuffer[jj].TimeStamp;
     for (int j=0;j<6;j++){
       *pdatab++ = BarcodeDataBuffer[jj].BarcodeArray[j];
     }
   }
   bk_close(pevent,pdatab);
+  mlock.unlock();
 
-  /*
-  rc = GCmdD(g,"MG @AN[1]",&Tension1);
-  rc = GCmdD(g,"MG @AN[2]",&Tension2);
-  rc = GCmdD(g,"TPA",&Position1);
-  rc = GCmdD(g,"TPC",&Position2);
-  rc = GCmdD(g,"TVA",&Velocity1);
-  rc = GCmdD(g,"TVC",&Velocity2);
-  rc = GCmdD(g,"TTA",&OutputV1);
-  rc = GCmdD(g,"TTC",&OutputV2);
-  rc = GCmdD(g,"MG @AN[3]",&Barcode1);
-  rc = GCmdD(g,"MG @AN[4]",&Barcode2);
-  rc = GCmdD(g,"MG @AN[5]",&Barcode3);
-  */
-
-/*
-  rc = GMessage(g, buf1, sizeof(buf1));
-//  cout << buf1 << endl;
-
-  stringstream iss (buf1);
-  // output returned by Galil is stored in the following variables
-  iss >> axes[0];
-  iss >> speed[0];
-  iss >> torque[0];
-  iss >> Analog[0];
-  iss >> Analog[1];
-  iss >> Analog[2];
-
-  cm_get_experiment_database(&hDB, NULL);
-  db_set_value(hDB, 0, "/Equipment/Galil/Variables/Position",&axes, sizeof(axes), 3, TID_FLOAT);
-  db_set_value(hDB,0,"/Equipment/Galil/Variables/Speed",&speed,sizeof(speed),3,TID_FLOAT);
-  db_set_value(hDB,0,"/Equipment/Galil/Variables/Acceleration",&acceleration,sizeof(acceleration),3,TID_FLOAT);
-  db_set_value(hDB,0,"/Equipment/Galil/Variables/Torque",&torque,sizeof(torque),3,TID_FLOAT);
-*/
-
-  /* 
-     bk_create(pevent, "SPID", TID_FLOAT, (void **)&pspid);
-     for (int j=0;j<3;j++){
-   *pspid++ = speed[j];
-   }
-   bk_close(pevent,pspid);
-
-   bk_create(pevent,"ACCL", TID_FLOAT, (void **)&pacc);
-   for(int j=0;j<3;j++){
-   *pacc++ = acceleration[j];
-   }
-   bk_close(pevent,pacc);
-   */
   return bk_size(pevent);
 }
 
+//GetGalilMessage
+void GetGalilMessage(const GCon &g){
+  int DataBufferSize = 500;
+  char buffer[5000000];
+  hkeyclient=0;
+  string Device;
+  /* residule string */
+  string ResidualString = string("");
 
+  //Readout loop
+  while (1){
+    if (!RunActive)break;
+    //Read Message to buffer
+    rc = GMessage(g, buffer, sizeof(buf));
+
+    //  cout<<buffer<<endl;
+    GalilOutFileDirect<<buffer;
+    string BufString = string(buffer);
+    //Add the residual from last read
+    if (ResidualString.size()!=0)BufString = ResidualString+BufString;
+    ResidualString.clear();
+
+    size_t foundnewline = BufString.find("\n");
+    //  static  bool flag = false;
+
+    int iGalil = 0;
+    int iBarcode = 0;
+    GalilDataStruct GalilDataUnit;
+    BarcodeDataStruct BarcodeDataUnit;
+    while (foundnewline!=string::npos){
+      /*    if (flag){
+	    GalilOutFile<<"REMAINING string: "<< BufString.substr(0,foundnewline-1)<<endl;
+	    flag=false;
+	    }*/
+      stringstream iss (BufString.substr(0,foundnewline-1));
+      // output returned by Galil is stored in the following variables
+
+      iss >> Device;
+      if(Device.compare("Trolley")==0){
+	iss >> GalilDataUnit.TimeStamp;
+	for (int j=0;j<2;j++){
+	  iss >> GalilDataUnit.TensionArray[j];
+	}
+	for (int j=0;j<2;j++){
+	  iss >> GalilDataUnit.PositionArray[j];
+	}
+	for (int j=0;j<2;j++){
+	  iss >> GalilDataUnit.VelocityArray[j];
+	}
+	for (int j=0;j<2;j++){
+	  iss >> GalilDataUnit.OutputVArray[j];
+	}
+
+	mlock.lock();
+	GalilDataBuffer.push_back(GalilDataUnit);
+	mlock.unlock();
+
+	iGalil++;
+	//Write to txt output
+	GalilOutFile<<"Trolley "<<int(time)<<" "<<GalilDataUnit.TensionArray[0]<<" "<<GalilDataUnit.TensionArray[1]<<" "<<GalilDataUnit.PositionArray[0]<<" "<<GalilDataUnit.PositionArray[1]<<" "<<GalilDataUnit.VelocityArray[0]<<" "<<GalilDataUnit.VelocityArray[1]<<" "<<GalilDataUnit.OutputVArray[0]<<" "<<GalilDataUnit.OutputVArray[1]<<endl;
+      }else if(Device.compare("Barcode")==0){
+	iss >> BarcodeDataUnit.TimeStamp;
+	for (int j=0;j<6;j++){
+	  iss >> BarcodeDataUnit.BarcodeArray[j];
+	}
+	mlock.lock();
+	BarcodeDataBuffer.push_back(BarcodeDataUnit);
+	mlock.unlock();
+	iBarcode++;
+	//Write to txt output
+	GalilOutFile<<"Barcode "<<int(time)<<" "<<BarcodeDataUnit.BarcodeArray[0]<<" "<<BarcodeDataUnit.BarcodeArray[1]<<" "<<BarcodeDataUnit.BarcodeArray[2]<<" "<<BarcodeDataUnit.BarcodeArray[3]<<" "<<BarcodeDataUnit.BarcodeArray[4]<<" "<<BarcodeDataUnit.BarcodeArray[5]<<endl;
+      }
+      /*else if (Device.compare("Garage")==0){
+	iss >> time;
+	int GarageP,GarageV,GarageC;
+	iss>>GarageP>>GarageV>>GarageC;
+	}*/
+
+      //       GalilOutFile<<TensionArray[0]<<" "<<TensionArray[1]<<" "<<VelocityArray[0]<<" "<<VelocityArray[1]<<" "<<PositionArray[0]<<" "<<PositionArray[1]<<" "<<OutputVArray[0]<<" "<<OutputVArray[1]<<" "<<BarcodeArray[0]<<" "<<BarcodeArray[1]<<" "<<BarcodeArray[2]<<endl;
+
+      BufString = BufString.substr(foundnewline+1,string::npos);
+      foundnewline = BufString.find("\n");
+    }
+    if (BufString.size()!=0){
+      //  GalilOutFile << "Remaining string: ";
+      ResidualString = BufString;
+      //    cout <<ResidualString<<endl;
+    }
+  }
+}
