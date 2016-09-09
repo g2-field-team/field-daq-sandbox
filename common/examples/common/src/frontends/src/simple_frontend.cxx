@@ -15,6 +15,7 @@ About:  A simple example frontend that generates a random point.
 #include <stdlib.h>
 #include <string>
 #include <random>
+#include <sys/time.h>
 using std::string;
 
 //--- other includes --------------------------------------------------------//
@@ -86,7 +87,7 @@ extern "C" {
          "MIDAS",       // format 
          TRUE,          // enabled 
          RO_RUNNING,    // read only when running 
-         100,           // poll for 10ms 
+         5,           // poll for 5 ms 
          0,             // stop run after this event limit 
          0,             // number of sub events 
          1,             // don't log history 
@@ -104,7 +105,10 @@ extern "C" {
 namespace {
 boost::property_tree::ptree conf;
 boost::property_tree::ptree global_conf;
-double length_unit = 1.0; // meters
+double point_min = 0.0;
+double point_max = 1.0;
+long long last_event;
+long long next_event;
 } 
 
 //--- Frontend Init ---------------------------------------------------------//
@@ -122,7 +126,7 @@ INT frontend_exit()
 //--- Begin of Run ----------------------------------------------------------//
 INT begin_of_run(INT run_number, char *error)
 {
-/*
+
   int rc = load_global_settings(global_conf);
   if (rc != 0) {
     cm_msg(MERROR, "begin_of_run", "could not load global settings");
@@ -135,8 +139,9 @@ INT begin_of_run(INT run_number, char *error)
     return rc;
   }
 
-  length_unit = conf.get<double>("lenght_unit");
-*/
+  point_min = conf.get<double>("min");
+  point_max = conf.get<double>("max");
+
   return SUCCESS;
 }
 
@@ -186,11 +191,16 @@ INT poll_event(INT source, INT count, BOOL test) {
     for (i = 0; i < count; i++) {
       usleep(10);
     }
+
+    last_event = steadyclock_us();
+
     return 0;
   }
 
+  next_event = steadyclock_us();
+
   // Check hardware for events, just random here.
-  if (rand() > RAND_MAX / 2.0) {
+  if (next_event - last_event > 100000) {
     return 1;
   } else {
     return 0;
@@ -226,11 +236,14 @@ INT read_trigger_event(char *pevent, INT off)
   // Let MIDAS allocate the struct.
   bk_create(pevent, bank_name, TID_STRUCT, &point);
 
+  // Grab a timestamp.
+  last_event = steadyclock_us();
+
   // Fill the struct.
-  point->timestamp = clock() * 1.0 / CLOCKS_PER_SEC;
-  point->x = 1.0 * rand() / RAND_MAX;
-  point->y = 1.0 * rand() / RAND_MAX;
-  point->z = 1.0 * rand() / RAND_MAX;
+  point->timestamp = last_event;
+  point->x = (double)rand() / RAND_MAX * (point_max - point_min) + point_min;
+  point->y = (double)rand() / RAND_MAX * (point_max - point_min) + point_min;
+  point->z = (double)rand() / RAND_MAX * (point_max - point_min) + point_min;
 
   // Need to increment pointer and close.
   bk_close(pevent, ++point); 
