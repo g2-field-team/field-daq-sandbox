@@ -8,6 +8,7 @@ for an in "${EXPT_AN[@]}"; do
     scname="${EXPT}.${an//_/-}"
     cmd="${anname} -e $EXPT -s $ROODY_PORT $(printf \\r)"
     screen -dmS $scname
+    sleep 0.05
     screen -S $scname -p 0 -rX stuff "$cmd"
 done
 

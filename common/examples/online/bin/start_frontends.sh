@@ -7,6 +7,7 @@ for fe in "${EXPT_FE[@]}"; do
     fename="${EXPT_DIR}/common/bin/${fe}"
     scname="${EXPT}.${fe//_/-}"
     screen -dmS $scname
+    sleep 0.05
     screen -S $scname -p 0 -rX stuff "${fename} -e $EXPT$(printf \\r)"
 done
 

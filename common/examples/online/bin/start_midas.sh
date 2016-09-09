@@ -17,21 +17,25 @@ for mu in "${MIDAS_UTIL[@]}"; do
         'mserver')
             cmd="mserver -p $MSERVER_PORT -e $EXPT $(printf \\r)"
             screen -dmS "${EXPT}.mserver"
+	    sleep 0.05
             screen -S "${EXPT}.mserver" -p 0 -rX stuff "$cmd";;
         
         'mhttpd')
             cmd="mhttpd  -e $EXPT $addresslist --nomg --oldserver $MHTTPD_PORT$(printf \\r)"
             screen -dmS "${EXPT}.mhttpd"
+	    sleep 0.05
             screen -S "${EXPT}.mhttpd" -p 0 -rX stuff "$cmd";;
         
         'mlogger')
             cmd="mlogger -e $EXPT$(printf \\r)"
             screen -dmS "${EXPT}.mlogger"
+	    sleep 0.05
             screen -S "${EXPT}.mlogger" -p 0 -rX stuff "$cmd";;
         
         'mevb')
             cmd="mevb -e $EXPT -b BUF$(printf \\r)"
             screen -dmS "${EXPT}.mevb"
+	    sleep 0.05
             screen -S "${EXPT}.mevb" -p 0 -rX stuff "$cmd";;
     esac
 done
