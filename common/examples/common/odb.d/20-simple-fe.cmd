@@ -1,7 +1,7 @@
 mkdir "Equipment/Simple Frontend/Settings"
 
-create DOUBLE "Equipment/Simple Frontend/Settings/mean"
-set "Equipment/Simple Frontend/Settings/mean" 0.0
+create DOUBLE "Equipment/Simple Frontend/Settings/min"
+set "Equipment/Simple Frontend/Settings/min" 0.0
 
-create DOUBLE "Equipment/Simple Frontend/Settings/sigma"
-set "Equipment/Simple Frontend/Settings/sigma" 1.0
+create DOUBLE "Equipment/Simple Frontend/Settings/max"
+set "Equipment/Simple Frontend/Settings/max" 1.0
