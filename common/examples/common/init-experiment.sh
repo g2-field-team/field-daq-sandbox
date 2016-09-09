@@ -4,7 +4,7 @@ EXPT_DIR=$(dirname $(readlink -f "$0"))/..
 EXPT_NAME='example-expt'
 
 # Make sure the exptab exists.
-touch /etc/exptab
+sudo touch /etc/exptab
 
 # Check if the example was already initialized.
 if [ "$(grep example-expt /etc/exptab)" ]; then
@@ -14,7 +14,7 @@ fi
 
 # Add the sample experiment
 echo -e "\e[31mAdding experiment to exptab\e[0m"
-echo -e "${EXPT_NAME} ${EXPT_DIR}/resources ${USER}\n" >> /etc/exptab
+echo "${EXPT_NAME} ${EXPT_DIR}/resources ${USER}\n" | sudo tee --append /etc/exptab
 
 # Initialize the ODB to reasonable size.
 odbedit -e ${EXPT_NAME} -s 100000 -c 'clean'
