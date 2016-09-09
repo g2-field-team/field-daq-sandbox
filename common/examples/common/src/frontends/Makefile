@@ -37,6 +37,7 @@ CPPFLAGS += -Wl,-rpath,/usr/local/lib
 # Set compilers
 CC = gcc
 CXX = g++
+LINK_DIR = ../../../common
 
 #-------------------------------------------------------------------
 # Finally we have the actual make directives.
@@ -51,6 +52,7 @@ build/%.o: obj/%.cxx obj/%.hh
 bin/%: src/%.cxx $(MID_LIB)/mfe.o $(OBJECTS)
 	$(CXX) -o $@ $+ $(CPPFLAGS) $(CXXFLAGS) $(ROOTFLAGS) \
 	$(LIBS) $(ROOTLIBS)
+	ln -fs $(shell pwd)/$@ $(LINK_DIR)/$@
 
 clean:
 	rm -f *~ $(TARGETS) $(OBJECTS)
