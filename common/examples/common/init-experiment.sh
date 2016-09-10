@@ -14,7 +14,7 @@ fi
 
 # Add the sample experiment
 echo -e "\e[31mAdding experiment to exptab\e[0m"
-echo "${EXPT_NAME} ${EXPT_DIR}/resources ${USER}\n" | sudo tee --append /etc/exptab
+echo "${EXPT_NAME} ${EXPT_DIR}/resources ${USER}" | sudo tee --append /etc/exptab
 
 # Initialize the ODB to reasonable size.
 odbedit -e ${EXPT_NAME} -s 100000 -c 'clean'
