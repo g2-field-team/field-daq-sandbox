@@ -33,8 +33,7 @@ const char * const bank_name = "SMFE"; // 4 letters, try to make sensible
 
 // Any structs need to be defined.
 BANK_LIST trigger_bank_list[] = {
-  {bank_name, TID_STRUCT, sizeof(g2::point_t), g2::point_str_midas}
-  ,
+  {bank_name, TID_CHAR, sizeof(g2::point_t), NULL},
   {""}
 };
 // @EXAMPLE END
@@ -94,8 +93,11 @@ extern "C" {
          "", "", "",
        },
        read_trigger_event,      // readout routine 
+       NULL,
+       NULL,
+       NULL, 
       },
-      
+
       {""}
     };
 
@@ -228,25 +230,30 @@ INT interrupt_configure(INT cmd, INT source, PTYPE adr)
 
 INT read_trigger_event(char *pevent, INT off)
 {
-  g2::point_t *point;
+  BYTE *pdata;
+  g2::point_t point;
 
   // And MIDAS output.
   bk_init32(pevent);
 
   // Let MIDAS allocate the struct.
-  bk_create(pevent, bank_name, TID_STRUCT, &point);
+  bk_create(pevent, bank_name, TID_BYTE, &pdata);
 
   // Grab a timestamp.
   last_event = steadyclock_us();
 
   // Fill the struct.
-  point->timestamp = last_event;
-  point->x = (double)rand() / RAND_MAX * (point_max - point_min) + point_min;
-  point->y = (double)rand() / RAND_MAX * (point_max - point_min) + point_min;
-  point->z = (double)rand() / RAND_MAX * (point_max - point_min) + point_min;
+  point.timestamp = last_event;
+  point.x = (double)rand() / RAND_MAX * (point_max - point_min) + point_min;
+  point.y = (double)rand() / RAND_MAX * (point_max - point_min) + point_min;
+  point.z = (double)rand() / RAND_MAX * (point_max - point_min) + point_min;
+
+  // Copy the struct
+  memcpy(pdata, &point.timestamp, sizeof(point));
+  pdata += sizeof(point);
 
   // Need to increment pointer and close.
-  bk_close(pevent, ++point); 
+  bk_close(pevent, pdata);
 
   return bk_size(pevent);
 }
