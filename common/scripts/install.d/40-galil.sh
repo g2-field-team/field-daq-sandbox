@@ -1,6 +1,7 @@
 mkdir -p /usr/local/opt/galil
 cd /usr/local/opt/galil
-wget http://www.galil.com/sw/pub/rhel/6/galilrpm-2-1.noarch.rpm | rpm -ivh
+wget http://www.galil.com/sw/pub/rhel/6/galilrpm-2-1.noarch.rpm 
+rpm -ivh galilrpm-2-1.noarch.rpm
 
 yum install gclib
 
