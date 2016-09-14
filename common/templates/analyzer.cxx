@@ -1,10 +1,10 @@
 /**************************************************************************** \
 
-  file:    simple_analyzer.cxx
-  author:  Matthias W. Smith
-  email:   mwsmith2@uw.edu
+  file:    @ANALYZER_NAME.cxx
+  author:  @USER
+  email:   @USER_EMAIL
 
-  about:   A compliment to the Simple Frontend.
+  about:   A template front-end
 
 \*****************************************************************************/
 
@@ -21,16 +21,13 @@ using std::endl;
 
 //--- other includes --------------------------------------------------------//
 #include "midas.h"
-#include "TTree.h"
-#include "TFile.h"
 
 //--- project includes ------------------------------------------------------//
-#include "field_structs.hh"
 
 //--- global variables ------------------------------------------------------//
 
 // The analyzer name (client name) as seen by other MIDAS clients
-char *analyzer_name = (char *)"Simple Analyzer";
+char *analyzer_name = (char *)@ANALYZER_NAME;
 
 // analyzer_loop is called with this interval in ms (0 to disable)  
 INT analyzer_loop_period = 0;
@@ -41,7 +38,7 @@ INT odb_size = DEFAULT_ODB_SIZE;
 //--- module declaration ----------------------------------------------------//
 
 BANK_LIST analyzer_bank_list[] = {
-  {"SMFE", TID_BYTE, sizeof(g2::point_t), NULL},
+  {@BANK_NAME, @TID_TYPE, @BANK_LENGTH, NULL},
   {""}
 };
 
@@ -51,8 +48,8 @@ INT ana_begin_of_run(INT run_number, char *error);
 INT ana_end_of_run(INT run_number, char *error);
 
 ANALYZE_REQUEST analyze_request[] = {
-  {"Simple Analyzer",     // equipment name 
-    {10,                     // event ID 
+  {@ANALYZER_NAME,     // equipment name 
+    {@BANK_EVENT_ID,                     // event ID 
      TRIGGER_ALL,           // trigger mask 
      GET_NONBLOCKING,       // get events without blocking producer 
      "SYSTEM",                // event buffer 
@@ -123,32 +120,12 @@ INT analyzer_loop()
 INT ana_trigger_event(EVENT_HEADER *pheader, void *pevent)
 {
    INT end, start, n;
-   BYTE *pdata;
-   static int count = 0;
-   static g2::point_t point;
+   @MIDAS_DATA_TYPE *pdata;
 
    // Look for shim platform data bank
-   n = bk_locate(pevent, "SMFE", &pdata);
+   n = bk_locate(pevent, @BANK_NAME, &pdata);
 
-   memcpy(&point.timestamp, pdata, sizeof(point));
-
-   // Return if we didn't find anything.
-   if (n == 0) {
-
-     cout << "Couldn't find SMFE bank." << endl;
-     cout << "pevent: " << std::hex << pevent << std::dec << endl;
-     return 1;
-
-   } else {
-     
-     cout << "Found SMFE bank." << endl;
-     printf("Event %05i: %.6f, <%.3f, %.3f, %.3f>\n", 
-	    count++, 
-	    point.timestamp,
-	    point.x,
-	    point.y,
-	    point.z);
-   }
+   // @USER algos.
 
    return SUCCESS;
 }

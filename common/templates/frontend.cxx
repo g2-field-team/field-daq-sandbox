@@ -27,13 +27,12 @@ using std::string;
 
 //--- globals ---------------------------------------------------------------//
 
-// @EXAMPLE BEGIN
-#define FRONTEND_NAME "Simple Frontend" // Prefer capitalize with spaces
-const char * const bank_name = "SMFE"; // 4 letters, try to make sensible
+#define FRONTEND_NAME @BLANK // Prefer capitalize with spaces
+const char * const bank_name = @BLANK; // 4 letters, try to make sensible
 
 // Any structs need to be defined.
 BANK_LIST trigger_bank_list[] = {
-  {bank_name, TID_BYTE, sizeof(g2::point_t), NULL},
+  {bank_name, @TYPE(TID_WORD, etc), @BANK_LENGTH, NULL},
   {""}
 };
 // @EXAMPLE END
@@ -80,13 +79,13 @@ extern "C" {
     {
       {FRONTEND_NAME,   // equipment name 
        { 10, 0,         // event ID, trigger mask 
-         "SYSTEM",      // event buffer (used to be SYSTEM)
-         EQ_POLLED,     // equipment type 
+         "SYSTEM",      // event buffer
+         @EQ_TYPE,      // equipment type (EQ_POLLED, EQ_PERIODIC)
          0,             // not used 
          "MIDAS",       // format 
          TRUE,          // enabled 
          RO_RUNNING,    // read only when running 
-         10,           // poll for 10 ms 
+         10,            // poll for 10 ms 
          0,             // stop run after this event limit 
          0,             // number of sub events 
          0,             // don't log history 
@@ -103,14 +102,10 @@ extern "C" {
 
 } //extern C
 
-// Put necessary globals in an anonomous namespace here.
+// @USER - Put necessary globals in an anonomous namespace here.
 namespace {
 boost::property_tree::ptree conf;
 boost::property_tree::ptree global_conf;
-double point_min = 0.0;
-double point_max = 1.0;
-long long last_event;
-long long next_event;
 } 
 
 //--- Frontend Init ---------------------------------------------------------//
@@ -141,8 +136,8 @@ INT begin_of_run(INT run_number, char *error)
     return rc;
   }
 
-  point_min = conf.get<double>("min", point_min);
-  point_max = conf.get<double>("max", point_max);
+  // @USER - retrieve ODB params here
+  // local_example = conf.get<double>("local_example", [optional default])
 
   return SUCCESS;
 }
@@ -193,16 +188,11 @@ INT poll_event(INT source, INT count, BOOL test) {
     for (i = 0; i < count; i++) {
       usleep(10);
     }
-
-    last_event = steadyclock_us();
-
     return 0;
   }
 
-  next_event = steadyclock_us();
-
   // Check hardware for events, just random here.
-  if (next_event - last_event > 100000) {
+  if (@CHECK_FOR_EVENT)
     return 1;
   } else {
     return 0;
@@ -230,27 +220,17 @@ INT interrupt_configure(INT cmd, INT source, PTYPE adr)
 
 INT read_trigger_event(char *pevent, INT off)
 {
-  BYTE *pdata;
-  g2::point_t point;
+  @BANK_MIDAS_TYPE (DWORD) *pdata;
 
   // And MIDAS output.
   bk_init32(pevent);
 
   // Let MIDAS allocate the struct.
-  bk_create(pevent, bank_name, TID_BYTE, &pdata);
+  bk_create(pevent, bank_name, @TID_TYPE, &pdata);
 
-  // Grab a timestamp.
-  last_event = steadyclock_us();
-
-  // Fill the struct.
-  point.timestamp = last_event;
-  point.x = (double)rand() / RAND_MAX * (point_max - point_min) + point_min;
-  point.y = (double)rand() / RAND_MAX * (point_max - point_min) + point_min;
-  point.z = (double)rand() / RAND_MAX * (point_max - point_min) + point_min;
-
-  // Copy the struct
-  memcpy(pdata, &point.timestamp, sizeof(point));
-  pdata += sizeof(point);
+  // Copy data to pdata
+  // memcpy(pdata, &@USER_DATA, sizeof(point));
+  //  pdata += sizeof(@USER_DATA);
 
   // Need to increment pointer and close.
   bk_close(pevent, pdata);
