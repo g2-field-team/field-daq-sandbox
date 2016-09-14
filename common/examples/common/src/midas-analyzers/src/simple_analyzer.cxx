@@ -142,7 +142,7 @@ INT ana_trigger_event(EVENT_HEADER *pheader, void *pevent)
    } else {
      
      cout << "Found SMFE bank." << endl;
-     printf("Event %05i: %llus, <%.3f, %.3f, %.3f>\n", 
+     printf("Event %05i: %.6f, <%.3f, %.3f, %.3f>\n", 
 	    count++, 
 	    point.timestamp,
 	    point.x,

@@ -33,7 +33,7 @@ const char * const bank_name = "SMFE"; // 4 letters, try to make sensible
 
 // Any structs need to be defined.
 BANK_LIST trigger_bank_list[] = {
-  {bank_name, TID_CHAR, sizeof(g2::point_t), NULL},
+  {bank_name, TID_BYTE, sizeof(g2::point_t), NULL},
   {""}
 };
 // @EXAMPLE END
@@ -86,10 +86,10 @@ extern "C" {
          "MIDAS",       // format 
          TRUE,          // enabled 
          RO_RUNNING,    // read only when running 
-         5,           // poll for 5 ms 
+         10,           // poll for 10 ms 
          0,             // stop run after this event limit 
          0,             // number of sub events 
-         1,             // don't log history 
+         0,             // don't log history 
          "", "", "",
        },
        read_trigger_event,      // readout routine 
@@ -135,14 +135,14 @@ INT begin_of_run(INT run_number, char *error)
     return rc;
   }
  
-  rc = load_settings(frontend_name, global_conf);
+  rc = load_settings(frontend_name, conf);
   if (rc != 0) {
     cm_msg(MERROR, "begin_of_run", "could not load equipment settings");
     return rc;
   }
 
-  point_min = conf.get<double>("min");
-  point_max = conf.get<double>("max");
+  point_min = conf.get<double>("min", point_min);
+  point_max = conf.get<double>("max", point_max);
 
   return SUCCESS;
 }
